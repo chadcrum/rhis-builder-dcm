@@ -26,6 +26,13 @@
     mode: "0644"
     remote_src: true
 
+- name: Template ACM cluster provider environment file
+  ansible.builtin.template:
+    src: dcm-acm-cluster.env.j2
+    dest: "{{ dcm_quadlet_dir }}/dcm-acm-cluster.env"
+    mode: "0600"
+  when: dcm_provider_acm_cluster
+
 - name: Remove cloned api-gateway repository
   ansible.builtin.file:
     path: /tmp/dcm-api-gateway
