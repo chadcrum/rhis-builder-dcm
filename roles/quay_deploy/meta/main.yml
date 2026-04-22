@@ -1,6 +1,0 @@
----
-
-galaxy_info:
-  author: "Paul Armstrong (github:@parmstro)"
-  description: "Deploy and configure Quay container registry as a quadlet service stack."
-  standalone: false

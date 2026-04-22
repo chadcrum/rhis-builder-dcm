@@ -1,0 +1,22 @@
+[Unit]
+Description=DCM Service Provider Manager
+After=network-online.target dcm-network-network.service dcm-postgres.service dcm-nats.service
+Wants=network-online.target
+Requires=dcm-network-network.service dcm-postgres.service dcm-nats.service
+
+[Container]
+Image={{ dcm_image_registry }}/service-provider-manager:{{ dcm_service_provider_manager_version }}
+ContainerName=service-provider-manager
+Network=dcm-network.network
+Pull=always
+EnvironmentFile={{ dcm_quadlet_dir }}/dcm.env
+Environment=DB_NAME=service-provider
+Environment=SVC_ADDRESS=:8080
+Environment=NATS_URL=nats://nats:4222
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

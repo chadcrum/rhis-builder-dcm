@@ -1,0 +1,89 @@
+---
+- name: Verify Traefik health
+  ansible.builtin.uri:
+    url: "http://localhost:{{ dcm_gateway_port }}/ping"
+    method: GET
+    status_code: [200]
+
+- name: Verify manager health endpoints
+  ansible.builtin.uri:
+    url: "http://localhost:{{ dcm_gateway_port }}{{ item }}"
+    method: GET
+    status_code: [200]
+  loop:
+    - /api/v1alpha1/health/providers
+    - /api/v1alpha1/health/catalog
+    - /api/v1alpha1/health/policies
+    - /api/v1alpha1/health/placement
+
+- name: Get running container names
+  ansible.builtin.command: podman ps --format {% raw %}'{{.Names}}'{% endraw %}
+  register: running_containers
+  changed_when: false
+
+- name: Assert core containers are running
+  ansible.builtin.assert:
+    that: "item in running_containers.stdout"
+    fail_msg: "Container {{ item }} is not running"
+  loop:
+    - postgres
+    - nats
+    - service-provider-manager
+    - catalog-manager
+    - policy-manager
+    - placement-manager
+    - gateway
+
+- name: Assert KubeVirt provider is running
+  ansible.builtin.assert:
+    that: "'kubevirt-service-provider' in running_containers.stdout"
+    fail_msg: "Container kubevirt-service-provider is not running"
+  when: dcm_provider_kubevirt
+
+- name: Assert K8s container provider is running
+  ansible.builtin.assert:
+    that: "'k8s-container-service-provider' in running_containers.stdout"
+    fail_msg: "Container k8s-container-service-provider is not running"
+  when: dcm_provider_k8s_container
+
+- name: Assert ACM cluster provider is running
+  ansible.builtin.assert:
+    that: "'acm-cluster-service-provider' in running_containers.stdout"
+    fail_msg: "Container acm-cluster-service-provider is not running"
+  when: dcm_provider_acm_cluster
+
+- name: Verify KubeVirt provider health endpoint
+  ansible.builtin.command: podman run --rm --network dcm-network docker.io/curlimages/curl:latest -sf http://kubevirt-service-provider:8081/api/v1alpha1/vms/health
+  register: kubevirt_health
+  changed_when: false
+  when: dcm_provider_kubevirt
+
+- name: Assert KubeVirt provider is healthy
+  ansible.builtin.assert:
+    that: "('ok' in kubevirt_health.stdout) or ('healthy' in kubevirt_health.stdout)"
+    fail_msg: "KubeVirt provider health check failed: {{ kubevirt_health.stdout }}"
+  when: dcm_provider_kubevirt
+
+- name: Verify K8s container provider health endpoint
+  ansible.builtin.command: podman run --rm --network dcm-network docker.io/curlimages/curl:latest -sf http://k8s-container-service-provider:8080/api/v1alpha1/containers/health
+  register: k8s_health
+  changed_when: false
+  when: dcm_provider_k8s_container
+
+- name: Assert K8s container provider is healthy
+  ansible.builtin.assert:
+    that: "('ok' in k8s_health.stdout) or ('healthy' in k8s_health.stdout)"
+    fail_msg: "K8s container provider health check failed: {{ k8s_health.stdout }}"
+  when: dcm_provider_k8s_container
+
+- name: Verify ACM cluster provider health endpoint
+  ansible.builtin.command: podman run --rm --network dcm-network docker.io/curlimages/curl:latest -sf http://acm-cluster-service-provider:8080/api/v1alpha1/clusters/health
+  register: acm_health
+  changed_when: false
+  failed_when: acm_health.rc != 0
+  when: dcm_provider_acm_cluster
+
+- name: Report ACM cluster provider health status
+  ansible.builtin.debug:
+    msg: "ACM cluster provider health: {{ acm_health.stdout | from_json | json_query('status') }} (upstream bug FLPATH-4085 causes not_ready in SP manager)"
+  when: dcm_provider_acm_cluster
