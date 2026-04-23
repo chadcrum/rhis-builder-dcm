@@ -1,0 +1,41 @@
+---
+- name: Install required packages
+  ansible.builtin.dnf:
+    name:
+      - "@container-management"
+      - firewalld
+      - git
+    state: present
+
+- name: Enable and start firewalld
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Open DCM gateway port in firewall
+  ansible.posix.firewalld:
+    port: "{{ dcm_gateway_port }}/tcp"
+    zone: "{{ dcm_firewall_zone }}"
+    permanent: true
+    state: enabled
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
+
+- name: Create configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dcm_config_dir }}/traefik/dynamic"
+    - "{{ dcm_config_dir }}/postgres-init"
+
+- name: Clone api-gateway repository for config files
+  ansible.builtin.git:
+    repo: "{{ dcm_api_gateway_repo }}"
+    version: "{{ dcm_api_gateway_version }}"
+    dest: /tmp/dcm-api-gateway
+    force: true

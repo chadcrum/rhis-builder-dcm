@@ -1,6 +1,6 @@
 ---
 
-- name: "Deploy and configure Quay container registry as quadlet"
+- name: "Deploy DCM as podman quadlet services"
   hosts: all
   become: true
   gather_facts: true
@@ -27,6 +27,6 @@
       ansible.builtin.include_vars:
         dir: "{{ vars_dir }}"
 
-    - name: "Apply quay_deploy role"
+    - name: "Apply dcm_deploy role"
       ansible.builtin.include_role:
-        name: "quay_deploy"
+        name: "dcm_deploy"

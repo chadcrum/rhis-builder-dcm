@@ -1,0 +1,22 @@
+[Unit]
+Description=DCM Catalog Manager
+After=network-online.target dcm-network-network.service dcm-postgres.service
+Wants=network-online.target
+Requires=dcm-network-network.service dcm-postgres.service
+
+[Container]
+Image={{ dcm_image_registry }}/catalog-manager:{{ dcm_catalog_manager_version }}
+ContainerName=catalog-manager
+Network=dcm-network.network
+Pull=always
+EnvironmentFile={{ dcm_quadlet_dir }}/dcm.env
+Environment=BIND_ADDRESS=:8080
+Environment=DB_NAME=catalog-manager
+Environment=PLACEMENT_MANAGER_URL=http://placement-manager:8080
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

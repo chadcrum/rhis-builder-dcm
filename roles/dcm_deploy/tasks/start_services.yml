@@ -1,0 +1,61 @@
+---
+- name: Start NATS service
+  ansible.builtin.systemd_service:
+    name: dcm-nats.service
+    state: started
+    enabled: true
+
+- name: Start DCM manager services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - dcm-service-provider-manager.service
+    - dcm-catalog-manager.service
+    - dcm-policy-manager.service
+    - dcm-placement-manager.service
+
+- name: Verify manager containers are running
+  ansible.builtin.command: podman inspect --format {% raw %}'{{.State.Running}}'{% endraw %} {{ item }}
+  register: manager_state
+  until: manager_state.stdout | trim == "true"
+  retries: 15
+  delay: 2
+  changed_when: false
+  loop:
+    - service-provider-manager
+    - catalog-manager
+    - policy-manager
+    - placement-manager
+
+- name: Wait for managers to initialize
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Start DCM gateway service
+  ansible.builtin.systemd_service:
+    name: dcm-gateway.service
+    state: started
+    enabled: true
+
+- name: Start KubeVirt service provider
+  ansible.builtin.systemd_service:
+    name: dcm-kubevirt-service-provider.service
+    state: started
+    enabled: true
+  when: dcm_provider_kubevirt
+
+- name: Start K8s container service provider
+  ansible.builtin.systemd_service:
+    name: dcm-k8s-container-service-provider.service
+    state: started
+    enabled: true
+  when: dcm_provider_k8s_container
+
+- name: Start ACM cluster service provider
+  ansible.builtin.systemd_service:
+    name: dcm-acm-cluster-service-provider.service
+    state: started
+    enabled: true
+  when: dcm_provider_acm_cluster
