@@ -78,3 +78,4 @@
 - name: Reload systemd daemon
   ansible.builtin.systemd_service:
     daemon_reload: true
+  tags: [systemd]
