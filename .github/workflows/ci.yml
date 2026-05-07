@@ -75,7 +75,7 @@ jobs:
         run: ansible-playbook verify_compose_alignment.yml
 
   molecule:
-    name: Molecule default scenario
+    name: Quadlet template rendering
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
